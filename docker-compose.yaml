@@ -1,7 +1,6 @@
-version: "3.9"
-
 services:
   zookeeper:
+    container_name: zookeeper
     image: ${ZOOKEEPER_IMAGE}
     environment:
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT}
@@ -13,12 +12,12 @@ services:
       - zookeeper_datalog:/datalog
     networks:
       - local-dev-net
-    container_name: zookeeper
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_KAFKA-0}
+      replicas: ${BUILD_ZOOKEEPER-0}
 
   kafka:
+    container_name: kafka
     image: ${KAFKA_IMAGE}
     platform: ${DEV_PLATFORM}
     environment:
@@ -41,14 +40,13 @@ services:
       - local-dev-net
     depends_on:
       - zookeeper
+    restart: unless-stopped
     deploy:
       replicas: ${BUILD_KAFKA-0}
-    container_name: kafka
-    restart: unless-stopped
 
   mysql:
-    image: ${MYSQL_IMAGE}
     container_name: mysql
+    image: ${MYSQL_IMAGE}
     ports:
       - "${MYSQL_EXTERNAL_PORT}:${MYSQL_PORT}"
     environment:
@@ -64,8 +62,8 @@ services:
       replicas: ${BUILD_MYSQL-0}
 
   postgres:
-    image: ${POSTGRES_IMAGE}
     container_name: postgres
+    image: ${POSTGRES_IMAGE}
     ports:
       - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_PORT}"
     environment:
@@ -81,12 +79,12 @@ services:
       replicas: ${BUILD_POSTGRES-0}
 
   redis:
+    container_name: redis
     image: ${REDIS_IMAGE}
     ports:
       - "${REDIS_EXTERNAL_PORT}:${REDIS_PORT}"
     networks:
       - local-dev-net
-    container_name: redis
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -94,6 +92,7 @@ services:
       replicas: ${BUILD_REDIS-0}
 
   akhq:
+    container_name: akhq
     image: ${AKHQ_IMAGE}
     platform: ${DEV_PLATFORM}
     environment:
@@ -107,23 +106,20 @@ services:
       - "${AKHQ_EXTERNAL_PORT}:${AKHQ_PORT}"
     networks:
       - local-dev-net
-    depends_on:
-      - kafka
-    container_name: akhq
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_KAFKA_UI_AKHQ:-0}
+      replicas: ${BUILD_AKHQ-0}
 
   grafana:
-    image: ${GRAFANA_IMAGE}
     container_name: grafana
+    image: ${GRAFANA_IMAGE}
     networks:
       - local-dev-net
     ports:
       - "${GRAFANA_EXTERNAL_PORT}:${GRAFANA_PORT}"
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_GRAFANA_UI:-0}
+      replicas: ${BUILD_GRAFANA-0}
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
 
