@@ -63,6 +63,25 @@ services:
     deploy:
       replicas: ${BUILD_MYSQL-0}
 
+
+
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    container_name: postgres
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_PORT}"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_POSTGRES-0}
+
   redis:
     image: ${REDIS_IMAGE}
     ports:
@@ -108,3 +127,4 @@ volumes:
   kafka_data:
   mysql_data:
   redis_data:
+  postgres_data:
