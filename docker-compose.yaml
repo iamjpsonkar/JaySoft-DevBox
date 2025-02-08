@@ -138,6 +138,10 @@ services:
       replicas: ${BUILD_GRAFANA-0}
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning
 
 networks:
   local-dev-net:
@@ -151,3 +155,4 @@ volumes:
   redis_data:
   postgres_data:
   prometheus_data:
+  grafana_data:
