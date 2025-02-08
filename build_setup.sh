@@ -55,7 +55,7 @@ check_service_up() {
 # Function to pull Docker images
 pull_images() {
     echo -e "${BLUE}\nPulling necessary Docker images...${NC}"
-    local services=("ZOOKEEPER" "KAFKA" "MYSQL" "REDIS" "POSTGRES" "AKHQ" "GRAFANA")
+    local services=("ZOOKEEPER" "KAFKA" "MYSQL" "REDIS" "POSTGRES" "AKHQ" "PROMETHEUS" "GRAFANA")
 
     for service in "${services[@]}"; do
         local build_var="BUILD_${service}"
@@ -75,7 +75,7 @@ start_services() {
     echo -e "${BLUE}\nStarting selected services...${NC}"
     local services_to_start=()
 
-    for service in zookeeper kafka mysql redis postgres akhq grafana; do
+    for service in zookeeper kafka mysql redis postgres akhq prometheus grafana; do
         local build_var="BUILD_${service^^}"
         if [ "${!build_var-0}" -eq 1 ]; then
             services_to_start+=("$service")

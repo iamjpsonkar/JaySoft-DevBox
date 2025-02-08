@@ -23,8 +23,8 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_PORT}
-      KAFKA_LISTENERS: INSIDE://0.0.0.0:${KAFKA_INTERNAL_PORT},OUTSIDE://0.0.0.0:${KAFKA_EXTERNAL_PORT}
-      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:${KAFKA_INTERNAL_PORT},OUTSIDE://localhost:${KAFKA_EXTERNAL_PORT}
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:${KAFKA_PORT},OUTSIDE://0.0.0.0:${KAFKA_EXTERNAL_PORT}
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:${KAFKA_PORT},OUTSIDE://localhost:${KAFKA_EXTERNAL_PORT}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -33,7 +33,7 @@ services:
     ports:
       - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
     expose:
-      - ${KAFKA_INTERNAL_PORT}
+      - ${KAFKA_PORT}
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
@@ -101,7 +101,7 @@ services:
           connections:
             default:
               properties:
-                bootstrap.servers: "kafka:${KAFKA_INTERNAL_PORT}"
+                bootstrap.servers: "kafka:${KAFKA_PORT}"
     ports:
       - "${AKHQ_EXTERNAL_PORT}:${AKHQ_PORT}"
     networks:
@@ -109,6 +109,20 @@ services:
     restart: unless-stopped
     deploy:
       replicas: ${BUILD_AKHQ-0}
+
+  prometheus:
+    container_name: prometheus
+    image: ${PROMETHEUS_IMAGE}
+    ports:
+      - "${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_PORT}"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_PROMETHEUS-0}
 
   grafana:
     container_name: grafana
@@ -118,6 +132,8 @@ services:
     ports:
       - "${GRAFANA_EXTERNAL_PORT}:${GRAFANA_PORT}"
     restart: unless-stopped
+    depends_on:
+      - prometheus
     deploy:
       replicas: ${BUILD_GRAFANA-0}
     environment:
@@ -134,3 +150,4 @@ volumes:
   mysql_data:
   redis_data:
   postgres_data:
+  prometheus_data:
