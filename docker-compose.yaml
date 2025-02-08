@@ -1,0 +1,110 @@
+version: "3.9"
+
+services:
+  zookeeper:
+    image: ${ZOOKEEPER_IMAGE}
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT}
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "${ZOOKEEPER_PORT}:${ZOOKEEPER_PORT}"
+    volumes:
+      - zookeeper_data:/data
+      - zookeeper_datalog:/datalog
+    networks:
+      - local-dev-net
+    container_name: zookeeper
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_KAFKA-0}
+
+  kafka:
+    image: ${KAFKA_IMAGE}
+    platform: ${DEV_PLATFORM}
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_PORT}
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:${KAFKA_INTERNAL_PORT},OUTSIDE://0.0.0.0:${KAFKA_EXTERNAL_PORT}
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:${KAFKA_INTERNAL_PORT},OUTSIDE://localhost:${KAFKA_EXTERNAL_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"  # Allows PLAINTEXT communication
+    ports:
+      - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
+    expose:
+      - ${KAFKA_INTERNAL_PORT}
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - local-dev-net
+    depends_on:
+      - zookeeper
+    deploy:
+      replicas: ${BUILD_KAFKA-0}
+    container_name: kafka
+    restart: unless-stopped
+
+  mysql:
+    image: ${MYSQL_IMAGE}
+    container_name: mysql
+    ports:
+      - "${MYSQL_EXTERNAL_PORT}:${MYSQL_PORT}"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_DATABASE: ${MYSQL_DB_NAME}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_MYSQL-0}
+
+  redis:
+    image: ${REDIS_IMAGE}
+    ports:
+      - "${REDIS_EXTERNAL_PORT}:${REDIS_PORT}"
+    networks:
+      - local-dev-net
+    container_name: redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_REDIS-0}
+
+
+  akhq:
+    image: ${AKHQ_IMAGE}
+    platform: ${DEV_PLATFORM}
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            default:
+              properties:
+                bootstrap.servers: "kafka:${KAFKA_INTERNAL_PORT}"
+    ports:
+      - "${AKHQ_EXTERNAL_PORT}:${AKHQ_PORT}"
+    networks:
+      - local-dev-net
+    depends_on:
+      - kafka
+    container_name: akhq
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_KAFKA_UI_AKHQ:-0}
+
+networks:
+  local-dev-net:
+    driver: bridge
+
+volumes:
+  zookeeper_data:
+  zookeeper_datalog:
+  kafka_data:
+  mysql_data:
+  redis_data:
