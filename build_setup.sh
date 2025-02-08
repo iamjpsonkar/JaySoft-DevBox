@@ -77,14 +77,20 @@ if [ "$BUILD_REDIS" -eq 1 ]; then
     echo ""
 fi
 
+if [ "$BUILD_POSTGRES" -eq 1 ]; then
+    check_service_up "postgres" "$POSTGRES_EXTERNAL_PORT" || exit 1
+    echo -e "\033[32mPostgreSQL: postgres://localhost:$POSTGRES_EXTERNAL_PORT\033[0m"  # Green for success
+    echo ""
+fi
+
 if [ "$BUILD_KAFKA_UI_AKHQ" -eq 1 ]; then
     check_service_up "akhq" "$AKHQ_EXTERNAL_PORT" || exit 1
     echo -e "\033[32mAKHQ Kafka UI: http://localhost:$AKHQ_EXTERNAL_PORT\033[0m"  # Green for success
     echo ""
 fi
 
-if [ "$BUILD_POSTGRES" -eq 1 ]; then
-    check_service_up "postgres" "$POSTGRES_EXTERNAL_PORT" || exit 1
-    echo -e "\033[32mPostgreSQL: postgres://localhost:$POSTGRES_EXTERNAL_PORT\033[0m"  # Green for success
+if [ "$BUILD_GRAFANA_UI" -eq 1 ]; then
+    check_service_up "grafana" "$GRAFANA_EXTERNAL_PORT" || exit 1
+    echo -e "\033[32mAKHQ Kafka UI: http://localhost:$GRAFANA_EXTERNAL_PORT\033[0m"  # Green for success
     echo ""
 fi

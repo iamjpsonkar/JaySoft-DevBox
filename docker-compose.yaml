@@ -53,7 +53,7 @@ services:
       - "${MYSQL_EXTERNAL_PORT}:${MYSQL_PORT}"
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "no"
-      MYSQL_ROOT_PASSWORD: "root"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASS}
       MYSQL_DATABASE: ${MYSQL_DB_NAME}
     volumes:
       - mysql_data:/var/lib/mysql
@@ -63,16 +63,14 @@ services:
     deploy:
       replicas: ${BUILD_MYSQL-0}
 
-
-
   postgres:
     image: ${POSTGRES_IMAGE}
     container_name: postgres
     ports:
       - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_PORT}"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
       POSTGRES_DB: ${POSTGRES_DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -95,7 +93,6 @@ services:
     deploy:
       replicas: ${BUILD_REDIS-0}
 
-
   akhq:
     image: ${AKHQ_IMAGE}
     platform: ${DEV_PLATFORM}
@@ -116,6 +113,19 @@ services:
     restart: unless-stopped
     deploy:
       replicas: ${BUILD_KAFKA_UI_AKHQ:-0}
+
+  grafana:
+    image: ${GRAFANA_IMAGE}
+    container_name: grafana
+    networks:
+      - local-dev-net
+    ports:
+      - "${GRAFANA_EXTERNAL_PORT}:${GRAFANA_PORT}"
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_GRAFANA_UI:-0}
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
 
 networks:
   local-dev-net:
