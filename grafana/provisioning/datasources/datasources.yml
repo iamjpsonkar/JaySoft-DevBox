@@ -7,21 +7,21 @@ datasources:
     isDefault: true
   - name: MySQL
     type: mysql
-    url: mysql:${MYSQL_PORT}
+    url: mysql_exporter:${MYSQL_EXPORTER_PORT}
     database: ${MYSQL_DB_NAME}
     user: root
     secureJsonData:
       password: ${MYSQL_PASS}
   - name: PostgreSQL
     type: postgres
-    url: postgres:${POSTGRES_PORT}
+    url: postgres_exporter:${POSTGRES_EXPORTER_PORT}
     database: ${POSTGRES_DB_NAME}
     user: ${POSTGRES_USER}
     secureJsonData:
       password: ${POSTGRES_PASS}
   - name: Kafka
     type: kafka
-    url: kafka:${KAFKA_INTERNAL_PORT}
+    url: kafka_exporter:${KAFKA_EXPORTER_PORT}
   - name: Redis
     type: redis
-    url: redis:${REDIS_PORT}
+    url: redis_exporter:${REDIS_EXPORTER_PORT}
