@@ -7,176 +7,154 @@ BLUE="\033[34m"
 CYAN="\033[36m"
 NC="\033[0m" # No Color
 
+
+# Define services
+services="monitor mysql mysql_exporter redis redis_exporter postgres postgres_exporter zookeeper kafka kafka_exporter prometheus grafana kafdrop akhq"
+
+
 # Load environment variables
 echo -e "${CYAN}\nLoading environment variables...${NC}"
-if [[ -f .env ]]; then
-    source .env
-    echo -e "${GREEN}\tEnvironment variables loaded successfully.${NC}\n"
+if [ -f .env ]; then
+    . .env
+    echo -e "${GREEN}    Environment variables loaded successfully.${NC}\n"
 else
-    echo -e "${RED}\tError: .env file not found!${NC}\n"
+    echo -e "${RED}    Error: .env file not found!${NC}\n"
     exit 1
 fi
 
 # Ensure Zookeeper is enabled if Kafka is enabled
 if [ "${BUILD_KAFKA-0}" -eq 1 ]; then
-    BUILD_ZOOKEEPER=1
     export BUILD_ZOOKEEPER=1
-    echo -e "${BLUE}\tKafka is enabled. Ensuring Zookeeper is also enabled.${NC}\n"
+    echo -e "${BLUE}    Kafka is enabled. Ensuring Zookeeper is also enabled.${NC}\n"
 else
-    BUILD_ZOOKEEPER=0
     export BUILD_ZOOKEEPER=0
+    export BUILD_AKHQ=0
+    export BUILD_KAFDROP=0
+    export BUILD_KAFKA_EXPORTER=0
+fi
+
+if [ "${BUILD_REDIS-0}" -eq 0 ]; then
+    export BUILD_REDIS_EXPORTER=0
+fi
+
+if [ "${BUILD_MYSQL-0}" -eq 0 ]; then
+    export BUILD_MYSQL_EXPORTER=0
+fi
+
+if [ "${BUILD_POSTGRES-0}" -eq 0 ]; then
+    export BUILD_POSTGRES_EXPORTER=0
 fi
 
 replace_env_vars() {
-    local script_path="$1"
-    
-    if [[ ! -f "$script_path" ]]; then
-        echo "File not found: $script_path"
+    script_path="$1"
+
+    if [ ! -f "$script_path" ]; then
+        echo -e "${RED}File not found: $script_path${NC}"
         return 1
     fi
 
-    # Extract all variables in the format ${VAR_NAME}
-    local vars=$(grep -oP '\$\{\K[A-Za-z0-9_]+(?=\})' "$script_path" | sort -u)
-
-    # Create a temporary file to store the updated content
-    local temp_file=$(mktemp)
-
-    # Read the original file and replace variables with their environment values
+    vars=$(grep -o '\${[A-Za-z0-9_]\+}' "$script_path" | sed 's/[${}]//g' | sort -u)
+    temp_file=$(mktemp)
     cp "$script_path" "$temp_file"
+
     for var in $vars; do
-        value=${!var}
-        if [[ -n "$value" ]]; then
-        sed -i "s/\\\${$var}/$value/g" "$temp_file"
-        fi
+        eval "value=\${$var}"
+        [ -n "$value" ] && sed "s|\${$var}|$value|g" "$temp_file" > "${temp_file}.tmp" && mv "${temp_file}.tmp" "$temp_file"
     done
 
-    # Overwrite the original file with the updated content
     mv "$temp_file" "$script_path"
-
-    echo "Environment variables replaced successfully in $script_path"
+    echo -e "✅ Environment variables replaced in $script_path"
 }
 
-if [ "${BUILD_PROMETHEUS-0}" -eq 1 ]; then
-    replace_env_vars ${PROMETHEUS_YML}
-    echo -e "${BLUE}\tUpdated ${PROMETHEUS_YML}${NC}\n"
-fi
-
-if [ "${BUILD_GRAFANA-0}" -eq 1 ]; then
-    replace_env_vars ${GRAFANA_YML}
-    echo -e "${BLUE}\tUpdated ${GRAFANA_YML}${NC}\n"
-fi
-
+[ "${BUILD_PROMETHEUS-0}" -eq 1 ] && replace_env_vars "$PROMETHEUS_YML"
+[ "${BUILD_GRAFANA-0}" -eq 1 ] && replace_env_vars "$GRAFANA_YML"
 
 generate_my_cnf() {
-    # Default values if not set
-    local MYSQL_USER="${MYSQL_USER-root}"
-    local MYSQL_PASS="${MYSQL_PASS-password}"
-    local MYSQL_HOST="${MYSQL_HOST-mysql}"
-    local MYSQL_PORT="${MYSQL_PORT-3306}"
-    local CNF_PATH="${1-./mysql_exporter/.my.cnf}"
-
-    # Create the directory if it doesn't exist
-    mkdir -p "$(dirname "$CNF_PATH")"
-
-    # Generate the .my.cnf file
-cat > "$CNF_PATH" <<EOF
+    dir="${1-./mysql_exporter}"
+    mkdir -p "$dir"
+    cat > "$dir/.my.cnf" <<EOF
 [client]
-user=${MYSQL_USER}
-password=${MYSQL_PASS}
-host=${MYSQL_HOST}
-port=${MYSQL_PORT}
+user=${MYSQL_USER-root}
+password=${MYSQL_PASS-password}
+host=${MYSQL_HOST-mysql}
+port=${MYSQL_PORT-3306}
 EOF
-
-    # Set secure permissions
-    chmod 600 "$CNF_PATH"
-
-    echo "✅ .my.cnf generated at $CNF_PATH"
+    chmod 600 "$dir/.my.cnf"
+    echo -e "✅ .my.cnf generated"
 }
 
 generate_my_cnf
 
-# Function to check if Docker is running
 check_docker() {
     echo -e "${CYAN}\nChecking Docker status...${NC}"
-    if ! docker info > /dev/null 2>&1; then
-        echo -e "${RED}\tError: Docker is not running. Please start Docker first.${NC}\n"
-        exit 1
+    if docker info >/dev/null 2>&1; then
+        echo -e "${GREEN}    Docker is running.${NC}\n"
     else
-        echo -e "${GREEN}\tDocker is running.${NC}\n"
+        echo -e "${RED}    Error: Docker is not running.${NC}"
+        exit 1
     fi
 }
 
-# Function to check if a service is up
 check_service_up() {
-    local service_name=$1
-    local port=$2
-    echo -e "${CYAN}\nChecking if $service_name is up on port $port...${NC}"
-
-    if docker inspect -f '{{.State.Running}}' $service_name 2>/dev/null | grep -q 'true'; then
-        echo -e "${GREEN}\t$service_name is running on port $port.${NC}\n"
+    service="$1"
+    port="$2"
+    if docker inspect -f '{{.State.Running}}' "$service" 2>/dev/null | grep -q 'true'; then
+        echo -e "${GREEN}    $service is running on port $port.${NC}\n"
     else
-        echo -e "${RED}\tError: $service_name is not running on port $port. Check logs for details.${NC}\n"
+        echo -e "${RED}    Error: $service is not running on port $port.${NC}"
         exit 1
     fi
 }
 
-# Function to pull Docker images
 pull_images() {
-    echo -e "${BLUE}\nPulling necessary Docker images...${NC}"
-    local services=("MONITOR" "ZOOKEEPER" "KAFKA" "MYSQL" "REDIS" "POSTGRES" "KAFDROP" "AKHQ" "PROMETHEUS" "GRAFANA" "KAFKA_EXPORTER" "REDIS_EXPORTER" "MYSQL_EXPORTER" "POSTGRES_EXPORTER")
-
-    for service in "${services[@]}"; do
-        local build_var="BUILD_${service}"
-        local service_name=$(echo "$service" | tr '[:upper:]' '[:lower:]')
-
-        if [ "${!build_var-0}" -eq 1 ]; then
-            echo -e "${CYAN}\tPulling image for $service_name...${NC}"
-            docker-compose pull "$service_name"
-            echo -e "${GREEN}\tImage for $service_name pulled successfully.${NC}\n"
+    echo -e "${BLUE}\nPulling Docker images...${NC}"
+    for service in $services; do
+        upper_service=$(echo -e "$service" | tr '[:lower:]' '[:upper:]')
+        eval "build_flag=\${BUILD_${upper_service}-0}"
+        if [ "$build_flag" -eq 1 ]; then
+            echo -e "${CYAN}    Pulling image for $service...${NC}"
+            docker-compose pull "$service"
         fi
     done
-    echo -e "${GREEN}\nAll Docker images pulled successfully.${NC}\n"
+    echo -e "${GREEN}✅ All Docker images pulled.${NC}\n"
 }
 
-# Function to start Docker services
 start_services() {
-    echo -e "${BLUE}\nStarting selected services...${NC}"
-    local services_to_start=()
-
-    for service in monitor zookeeper kafka mysql redis postgres kafdrop akhq prometheus grafana kafka_exporter redis_exporter mysql_exporter postgres_exporter; do
-        local build_var="BUILD_${service^^}"
-        if [ "${!build_var-0}" -eq 1 ]; then
-            services_to_start+=("$service")
+    echo -e "${BLUE}\nStarting services...${NC}"
+    services_to_start=""
+    for service in $services; do
+        upper_service=$(echo -e "$service" | tr '[:lower:]' '[:upper:]')
+        eval "build_flag=\${BUILD_${upper_service}-0}"
+        if [ "$build_flag" -eq 1 ]; then
+            services_to_start="$services_to_start $service"
         fi
     done
-
-    if [ ${#services_to_start[@]} -gt 0 ]; then
-        docker-compose up --build -d "${services_to_start[@]}"
-        echo -e "${GREEN}\tSelected services started in detached mode.${NC}\n"
+    if [ -n "$services_to_start" ]; then
+        docker-compose up --build -d $services_to_start --pull never
+        echo -e "${GREEN}✅ Services started.${NC}\n"
     else
-        echo -e "${CYAN}\tNo services enabled to start.${NC}\n"
+        echo -e "${CYAN}ℹ️ No services enabled to start.${NC}"
     fi
 }
 
-# Function to verify services
 verify_services() {
     echo -e "${BLUE}\nWaiting for services to initialize...${NC}"
     sleep 5
 
     declare -A services_ports=(
+        ["mysql"]=${MYSQL_EXTERNAL_PORT-13306}
+        ["mysql_exporter"]=${MYSQL_EXPORTER_PORT-9104}
+        ["redis"]=${REDIS_EXTERNAL_PORT-16379}
+        ["redis_exporter"]=${REDIS_EXPORTER_PORT-9121}
+        ["postgres"]=${POSTGRES_EXTERNAL_PORT-15432}
+        ["postgres_exporter"]=${POSTGRES_EXPORTER_PORT-9187}
         ["zookeeper"]=${ZOOKEEPER_PORT-2181}
         ["kafka"]=${KAFKA_EXTERNAL_PORT-19092}
-        ["mysql"]=${MYSQL_EXTERNAL_PORT-13306}
-        ["redis"]=${REDIS_EXTERNAL_PORT-16379}
-        ["postgres"]=${POSTGRES_EXTERNAL_PORT-15432}
+        ["kafka_exporter"]=${KAFKA_EXPORTER_PORT-9308}
+        ["prometheus"]=${PROMETHEUS_EXTERNAL_PORT-19090}
+        ["grafana"]=${GRAFANA_EXTERNAL_PORT-13000}
         ["akhq"]=${AKHQ_EXTERNAL_PORT-18080}
         ["kafdrop"]=${KAFDROP_EXTERNAL_PORT-19000}
-        ["grafana"]=${GRAFANA_EXTERNAL_PORT-13000}
-        ["kafka_exporter"]=${KAFKA_EXPORTER_PORT-9308}
-        ["redis_exporter"]=${REDIS_EXPORTER_PORT-9121}
-        ["mysql_exporter"]=${MYSQL_EXPORTER_PORT-9104}
-        ["postgres_exporter"]=${POSTGRES_EXPORTER_PORT-9187}
-        ["prometheus"]=${PROMETHEUS_EXTERNAL_PORT-19090}
     )
 
     for service in "${!services_ports[@]}"; do
@@ -185,33 +163,32 @@ verify_services() {
         if [ "${!build_var-0}" -eq 1 ]; then
             check_service_up "$service" "${services_ports[$service]}"
             case $service in
-                mysql) echo -e "${GREEN}\tMySQL: mysql://localhost:${services_ports[$service]}${NC}\n";;
-                redis) echo -e "${GREEN}\tRedis: redis://localhost:${services_ports[$service]}${NC}\n";;
-                postgres) echo -e "${GREEN}\tPostgreSQL: postgres://localhost:${services_ports[$service]}${NC}\n";;
-                akhq) echo -e "${GREEN}\tAKHQ Kafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
-                kafdrop) echo -e "${GREEN}\tKAFDROP Kafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
-                grafana) echo -e "${GREEN}\tGrafana UI: http://localhost:${services_ports[$service]}${NC}\n";;
-                zookeeper) echo -e "${GREEN}\tZookeeper: localhost:${services_ports[$service]}${NC}\n";;
-                kafka) echo -e "${GREEN}\tKafka: localhost:${services_ports[$service]}${NC}\n";;
-                kafka) echo -e "${GREEN}\tKafka Exporter: localhost:${services_ports[$service]}${NC}\n";;
-                kafka) echo -e "${GREEN}\tMYSQL Exporter: localhost:${services_ports[$service]}${NC}\n";;
-                kafka) echo -e "${GREEN}\tREDIS Exporter: localhost:${services_ports[$service]}${NC}\n";;
-                kafka) echo -e "${GREEN}\tPOSTGRES Exporter: localhost:${services_ports[$service]}${NC}\n";;
-                kafka) echo -e "${GREEN}\tPROMETHEUS Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                mysql) echo -e "✅ ${GREEN}\tMySQL: mysql://localhost:${services_ports[$service]}${NC}\n";;
+                mysql_exporter) echo -e "✅ ${GREEN}\tMYSQL Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                redis) echo -e "✅ ${GREEN}\tRedis: redis://localhost:${services_ports[$service]}${NC}\n";;
+                redis_exporter) echo -e "✅ ${GREEN}\tREDIS Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                postgres) echo -e "✅ ${GREEN}\tPostgreSQL: postgres://localhost:${services_ports[$service]}${NC}\n";;
+                postgres_exporter) echo -e "✅ ${GREEN}\tPOSTGRES Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                zookeeper) echo -e "✅ ${GREEN}\tZookeeper: localhost:${services_ports[$service]}${NC}\n";;
+                kafka) echo -e "✅ ${GREEN}\tKafka: localhost:${services_ports[$service]}${NC}\n";;
+                kafka_exporter) echo -e "✅ ${GREEN}\tKafka Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                prometheus) echo -e "✅ ${GREEN}\tPROMETHEUS Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                grafana) echo -e "✅ ${GREEN}\tGrafana UI: http://localhost:${services_ports[$service]}${NC}\n";;
+                akhq) echo -e "✅ ${GREEN}\tAKHQ Kafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
+                kafdrop) echo -e "✅ ${GREEN}\tKAFDROP Kafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
             esac
         fi
     done
-    echo -e "${GREEN}\nAll services are running and accessible.${NC}\n"
+    echo -e "${GREEN}✅ All services are up and running.${NC}\n"
 }
 
-# Main execution flow
-echo -e "${CYAN}\n--- Starting Docker Environment Setup ---${NC}"
+# Main Execution
 check_docker
 pull_images
 start_services
 verify_services
-echo -e "${GREEN}\n--- Docker Environment Setup Complete ---${NC}\n"
 
-# git checkout the updated yml file
-git checkout prometheus.yml
-git checkout grafana/provisioning/datasources/datasources.yml
+echo -e "${GREEN}🎉 Docker Environment Setup Complete!${NC}\n"
+
+# Revert changes to config files
+git checkout "$PROMETHEUS_YML" "$GRAFANA_YML"
