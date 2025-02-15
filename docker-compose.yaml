@@ -1,23 +1,22 @@
 services:
   monitor:
     container_name: monitor
-    image: ${MONITOR_IMAGE}
+    image: "${MONITOR_IMAGE}"
     command: tail -f /dev/null
     tty: true
     networks:
       - local-dev-net
     restart: unless-stopped
-    env_file:
-      - .env
+    env_file: .env
     deploy:
-      replicas: ${BUILD_MONITOR-0}
+      replicas: "${BUILD_MONITOR-0}"
 
   zookeeper:
     container_name: zookeeper
-    image: ${ZOOKEEPER_IMAGE}
+    image: "${ZOOKEEPER_IMAGE}"
     environment:
-      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT}
-      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_CLIENT_PORT: "${ZOOKEEPER_PORT}"
+      ZOOKEEPER_TICK_TIME: "2000"
     ports:
       - "${ZOOKEEPER_EXTERNAL_PORT}:${ZOOKEEPER_PORT}"
     volumes:
@@ -27,20 +26,20 @@ services:
       - local-dev-net
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_ZOOKEEPER-0}
+      replicas: "${BUILD_ZOOKEEPER-0}"
 
   kafka:
     container_name: kafka
-    image: ${KAFKA_IMAGE}
-    platform: ${DEV_PLATFORM}
+    image: "${KAFKA_IMAGE}"
+    platform: "${DEV_PLATFORM}"
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_PORT}
-      KAFKA_LISTENERS: INSIDE://0.0.0.0:${KAFKA_PORT},OUTSIDE://0.0.0.0:${KAFKA_EXTERNAL_PORT}
-      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:${KAFKA_PORT},OUTSIDE://localhost:${KAFKA_EXTERNAL_PORT}
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_BROKER_ID: "1"
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:${ZOOKEEPER_PORT}"
+      KAFKA_LISTENERS: "INSIDE://0.0.0.0:${KAFKA_PORT},OUTSIDE://0.0.0.0:${KAFKA_EXTERNAL_PORT}"
+      KAFKA_ADVERTISED_LISTENERS: "INSIDE://kafka:${KAFKA_PORT},OUTSIDE://localhost:${KAFKA_EXTERNAL_PORT}"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INSIDE"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       ALLOW_PLAINTEXT_LISTENER: "yes"
     ports:
@@ -53,97 +52,11 @@ services:
       - zookeeper
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_KAFKA-0}
-
-  mysql:
-    container_name: mysql
-    image: ${MYSQL_IMAGE}
-    ports:
-      - "${MYSQL_EXTERNAL_PORT}:${MYSQL_PORT}"
-    environment:
-      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASS}
-      MYSQL_DATABASE: ${MYSQL_DB_NAME}
-    command: --bind-address=0.0.0.0 --ssl=0 --skip-ssl
-    volumes:
-      - mysql_data:/var/lib/mysql
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_MYSQL-0}
-
-  postgres:
-    container_name: postgres
-    image: ${POSTGRES_IMAGE}
-    ports:
-      - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_PORT}"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASS}
-      POSTGRES_DB: ${POSTGRES_DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_POSTGRES-0}
-
-  redis:
-    container_name: redis
-    image: ${REDIS_IMAGE}
-    ports:
-      - "${REDIS_EXTERNAL_PORT}:${REDIS_PORT}"
-    networks:
-      - local-dev-net
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_REDIS-0}
-
-  kafka_ui:
-    image: ${KAFKA_UI_IMAGE}
-    container_name: kafka_ui
-    hostname: kafka_ui
-    ports:
-      - "${KAFKA_UI_EXTERNAL_PORT}:${KAFKA_UI_PORT}"
-    environment:
-      - "KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:${KAFKA_PORT}"
-      - "SERVER_SERVLET_CONTEXT_PATH=/"
-    depends_on:
-      - kafka
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_KAFKA_UI-0}
-
-  prometheus:
-    container_name: prometheus
-    image: ${PROMETHEUS_IMAGE}
-    ports:
-      - "${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_PORT}"
-    volumes:
-      - prometheus_data:/prometheus
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus/consoles:/etc/prometheus/consoles
-      - ./prometheus/console_libraries:/etc/prometheus/console_libraries
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    depends_on:
-      - kafka_exporter
-      - redis_exporter
-      - mysql_exporter
-      - postgres_exporter
-    deploy:
-      replicas: ${BUILD_PROMETHEUS-0}
+      replicas: "${BUILD_KAFKA-0}"
 
   kafka_exporter:
-    image: ${KAFKA_EXPORTER_IMAGE}
     container_name: kafka_exporter
+    image: "${KAFKA_EXPORTER_IMAGE}"
     command:
       - '--kafka.server=kafka:${KAFKA_PORT}'
       - '--kafka.version=2.8.0'
@@ -155,30 +68,82 @@ services:
       - local-dev-net
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_KAFKA_EXPORTER-0}
+      replicas: "${BUILD_KAFKA_EXPORTER-0}"
+
+  kafka_ui:
+    container_name: kafka_ui
+    image: "${KAFKA_UI_IMAGE}"
+    hostname: kafka_ui
+    ports:
+      - "${KAFKA_UI_EXTERNAL_PORT}:${KAFKA_UI_PORT}"
+    environment:
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:${KAFKA_PORT}"
+      SERVER_SERVLET_CONTEXT_PATH: "/"
+    depends_on:
+      - kafka
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: "${BUILD_KAFKA_UI-0}"
+
+  mysql:
+    container_name: mysql
+    image: "${MYSQL_IMAGE}"
+    ports:
+      - "${MYSQL_EXTERNAL_PORT}:${MYSQL_PORT}"
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_PASS}"
+      MYSQL_DATABASE: "${MYSQL_DB_NAME}"
+    command: --bind-address=0.0.0.0 --ssl=0 --skip-ssl
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: "${BUILD_MYSQL-0}"
 
   mysql_exporter:
-    image: ${MYSQL_EXPORTER_IMAGE}
     container_name: mysql_exporter
+    image: "${MYSQL_EXPORTER_IMAGE}"
     ports:
       - "${MYSQL_EXPORTER_EXTERNAL_PORT}:${MYSQL_EXPORTER_PORT}"
+    depends_on:
+      - mysql
+    networks:
+      - local-dev-net
+    restart: unless-stopped
     environment:
       DATA_SOURCE_NAME: "${MYSQL_USER}:${MYSQL_PASS}@(mysql:${MYSQL_PORT})/?tls=false"
     command:
       - '--config.my-cnf=/etc/mysql/.my.cnf'
     volumes:
       - ./mysql_exporter/.my.cnf:/etc/mysql/.my.cnf:ro
-    depends_on:
-      - mysql
+    deploy:
+      replicas: "${BUILD_MYSQL_EXPORTER-0}"
+
+  postgres:
+    container_name: postgres
+    image: "${POSTGRES_IMAGE}"
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_PORT}"
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASS}"
+      POSTGRES_DB: "${POSTGRES_DB_NAME}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - local-dev-net
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_MYSQL_EXPORTER-0}
+      replicas: "${BUILD_POSTGRES-0}"
 
   postgres_exporter:
-    image: ${POSTGRES_EXPORTER_IMAGE}
     container_name: postgres_exporter
+    image: "${POSTGRES_EXPORTER_IMAGE}"
     ports:
       - "${POSTGRES_EXPORTER_EXTERNAL_PORT}:${POSTGRES_EXPORTER_PORT}"
     environment:
@@ -189,11 +154,24 @@ services:
       - local-dev-net
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_POSTGRES_EXPORTER-0}
+      replicas: "${BUILD_POSTGRES_EXPORTER-0}"
+
+  redis:
+    container_name: redis
+    image: "${REDIS_IMAGE}"
+    ports:
+      - "${REDIS_EXTERNAL_PORT}:${REDIS_PORT}"
+    networks:
+      - local-dev-net
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    deploy:
+      replicas: "${BUILD_REDIS-0}"
 
   redis_exporter:
-    image: ${REDIS_EXPORTER_IMAGE}
     container_name: redis_exporter
+    image: "${REDIS_EXPORTER_IMAGE}"
     ports:
       - "${REDIS_EXPORTER_EXTERNAL_PORT}:${REDIS_EXPORTER_PORT}"
     environment:
@@ -204,11 +182,30 @@ services:
       - local-dev-net
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_REDIS_EXPORTER-0}
+      replicas: "${BUILD_REDIS_EXPORTER-0}"
+
+  prometheus:
+    container_name: prometheus
+    image: "${PROMETHEUS_IMAGE}"
+    ports:
+      - "${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_PORT}"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    depends_on:
+      - kafka_exporter
+      - redis_exporter
+      - mysql_exporter
+      - postgres_exporter
+    deploy:
+      replicas: "${BUILD_PROMETHEUS-0}"
 
   grafana:
     container_name: grafana
-    image: ${GRAFANA_IMAGE}
+    image: "${GRAFANA_IMAGE}"
     networks:
       - local-dev-net
     ports:
@@ -217,15 +214,13 @@ services:
     depends_on:
       - prometheus
     deploy:
-      replicas: ${BUILD_GRAFANA-0}
+      replicas: "${BUILD_GRAFANA-0}"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASS}
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASS}"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - ./grafana/provisioning:/etc/grafana/provisioning
-  
-
 
 networks:
   local-dev-net:

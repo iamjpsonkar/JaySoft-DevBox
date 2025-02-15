@@ -1,0 +1,8 @@
+grafana
+mysql_exporter
+kafka_ui
+prometheus
+postgres
+redis
+zookeeper
+docker
