@@ -1,0 +1,59 @@
+{
+    "dashboard": {
+        "id": null,
+        "title": "Docker Services Monitoring",
+        "timezone": "browser",
+        "panels": [
+            {
+                "type": "graph",
+                "title": "Exporter Health",
+                "targets": [
+                    {
+                        "expr": "up{job='docker_services'}",
+                        "legendFormat": "{{instance}}"
+                    }
+                ]
+            },
+            {
+                "type": "graph",
+                "title": "Kafka Brokers",
+                "targets": [
+                    {
+                        "expr": "kafka_brokers",
+                        "legendFormat": "Kafka Brokers"
+                    }
+                ]
+            },
+            {
+                "type": "graph",
+                "title": "MySQL Availability",
+                "targets": [
+                    {
+                        "expr": "mysql_up",
+                        "legendFormat": "MySQL Up"
+                    }
+                ]
+            },
+            {
+                "type": "graph",
+                "title": "Postgres Tables",
+                "targets": [
+                    {
+                        "expr": "pg_stat_user_tables",
+                        "legendFormat": "Postgres Tables"
+                    }
+                ]
+            },
+            {
+                "type": "graph",
+                "title": "Redis Memory Usage",
+                "targets": [
+                    {
+                        "expr": "redis_memory_used_bytes",
+                        "legendFormat": "Redis Memory (bytes)"
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -19,7 +19,7 @@ services:
       ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_PORT}
       ZOOKEEPER_TICK_TIME: 2000
     ports:
-      - "${ZOOKEEPER_PORT}:${ZOOKEEPER_PORT}"
+      - "${ZOOKEEPER_EXTERNAL_PORT}:${ZOOKEEPER_PORT}"
     volumes:
       - zookeeper_data:/data
       - zookeeper_datalog:/datalog
@@ -42,7 +42,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      ALLOW_PLAINTEXT_LISTENER: "yes"  # Allows PLAINTEXT communication
+      ALLOW_PLAINTEXT_LISTENER: "yes"
     ports:
       - "${KAFKA_EXTERNAL_PORT}:${KAFKA_PORT}"
     volumes:
@@ -127,7 +127,9 @@ services:
       - "${PROMETHEUS_EXTERNAL_PORT}:${PROMETHEUS_PORT}"
     volumes:
       - prometheus_data:/prometheus
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/consoles:/etc/prometheus/consoles
+      - ./prometheus/console_libraries:/etc/prometheus/console_libraries
     networks:
       - local-dev-net
     restart: unless-stopped
@@ -138,6 +140,71 @@ services:
       - postgres_exporter
     deploy:
       replicas: ${BUILD_PROMETHEUS-0}
+
+  kafka_exporter:
+    image: ${KAFKA_EXPORTER_IMAGE}
+    container_name: kafka_exporter
+    command:
+      - '--kafka.server=kafka:${KAFKA_PORT}'
+      - '--kafka.version=2.8.0'
+    ports:
+      - "${KAFKA_EXPORTER_EXTERNAL_PORT}:${KAFKA_EXPORTER_PORT}"
+    depends_on:
+      - kafka
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_KAFKA_EXPORTER-0}
+
+  mysql_exporter:
+    image: ${MYSQL_EXPORTER_IMAGE}
+    container_name: mysql_exporter
+    ports:
+      - "${MYSQL_EXPORTER_EXTERNAL_PORT}:${MYSQL_EXPORTER_PORT}"
+    environment:
+      DATA_SOURCE_NAME: "${MYSQL_USER}:${MYSQL_PASS}@(mysql:${MYSQL_PORT})/?tls=false"
+    command:
+      - '--config.my-cnf=/etc/mysql/.my.cnf'
+    volumes:
+      - ./mysql_exporter/.my.cnf:/etc/mysql/.my.cnf:ro
+    depends_on:
+      - mysql
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_MYSQL_EXPORTER-0}
+
+  postgres_exporter:
+    image: ${POSTGRES_EXPORTER_IMAGE}
+    container_name: postgres_exporter
+    ports:
+      - "${POSTGRES_EXPORTER_EXTERNAL_PORT}:${POSTGRES_EXPORTER_PORT}"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:${POSTGRES_PORT}/${POSTGRES_DB_NAME}?sslmode=disable"
+    depends_on:
+      - postgres
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_POSTGRES_EXPORTER-0}
+
+  redis_exporter:
+    image: ${REDIS_EXPORTER_IMAGE}
+    container_name: redis_exporter
+    ports:
+      - "${REDIS_EXPORTER_EXTERNAL_PORT}:${REDIS_EXPORTER_PORT}"
+    environment:
+      REDIS_ADDRESS: "redis://redis:${REDIS_PORT}"
+    depends_on:
+      - redis
+    networks:
+      - local-dev-net
+    restart: unless-stopped
+    deploy:
+      replicas: ${BUILD_REDIS_EXPORTER-0}
 
   grafana:
     container_name: grafana
@@ -158,70 +225,6 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - ./grafana/provisioning:/etc/grafana/provisioning
   
-  kafka_exporter:
-    image: ${KAFAK_EXPORTER_IMAGE}
-    container_name: kafka_exporter
-    command:
-      - '--kafka.server=kafka:${KAFKA_PORT}'
-      - '--kafka.version=2.8.0'
-    ports:
-      - "${KAFKA_EXPORTER_PORT}:${KAFKA_EXPORTER_PORT}"
-    depends_on:
-      - kafka
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_KAFKA_EXPORTER-0}
-
-  mysql_exporter:
-    image: ${MYSQL_EXPORTER_IMAGE}
-    container_name: mysql_exporter
-    ports:
-      - "${MYSQL_EXPORTER_PORT}:${MYSQL_EXPORTER_PORT}"
-    environment:
-      DATA_SOURCE_NAME: "${MYSQL_USER}:${MYSQL_PASS}@(mysql:${MYSQL_PORT})/?tls=false"
-    command:
-      - '--config.my-cnf=/etc/mysql/.my.cnf'
-    volumes:
-      - ./mysql_exporter/.my.cnf:/etc/mysql/.my.cnf:ro
-    depends_on:
-      - mysql
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_MYSQL_EXPORTER-0}
-
-  postgres_exporter:
-    image: ${POSTGRES_EXPORTER_IMAGE}
-    container_name: postgres_exporter
-    ports:
-      - "${POSTGRES_EXPORTER_PORT}:${POSTGRES_EXPORTER_PORT}"
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASS}@postgres:${POSTGRES_PORT}/${POSTGRES_DB_NAME}?sslmode=disable"
-    depends_on:
-      - postgres
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_POSTGRES_EXPORTER-0}
-
-  redis_exporter:
-    image: ${REDIS_EXPORTER_IMAGE}
-    container_name: redis_exporter
-    ports:
-      - "${REDIS_EXPORTER_PORT}:${REDIS_EXPORTER_PORT}"
-    environment:
-      REDIS_ADDRESS: "redis://redis:${REDIS_PORT}"
-    depends_on:
-      - redis
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    deploy:
-      replicas: ${BUILD_REDIS_EXPORTER-0}
 
 
 networks:

@@ -65,8 +65,8 @@ replace_env_vars() {
     echo -e "✅ Environment variables replaced in $script_path"
 }
 
-[ "${BUILD_PROMETHEUS-0}" -eq 1 ] && replace_env_vars "$PROMETHEUS_YML"
-[ "${BUILD_GRAFANA-0}" -eq 1 ] && replace_env_vars "$GRAFANA_YML"
+# [ "${BUILD_PROMETHEUS-0}" -eq 1 ] && replace_env_vars "$PROMETHEUS_YML"
+# [ "${BUILD_GRAFANA-0}" -eq 1 ] && replace_env_vars "$GRAFANA_YML"
 
 generate_my_cnf() {
     dir="${1-./mysql_exporter}"
@@ -162,15 +162,15 @@ verify_services() {
             check_service_up "$service" "${services_ports[$service]}"
             case $service in
                 mysql) echo -e "✅ ${GREEN}\tMySQL: mysql://localhost:${services_ports[$service]}${NC}\n";;
-                mysql_exporter) echo -e "✅ ${GREEN}\tMYSQL Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                mysql_exporter) echo -e "✅ ${GREEN}\tMYSQL Exporter: http://localhost:${services_ports[$service]}${NC}\n";;
                 redis) echo -e "✅ ${GREEN}\tRedis: redis://localhost:${services_ports[$service]}${NC}\n";;
-                redis_exporter) echo -e "✅ ${GREEN}\tREDIS Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                redis_exporter) echo -e "✅ ${GREEN}\tREDIS Exporter: http://localhost:${services_ports[$service]}${NC}\n";;
                 postgres) echo -e "✅ ${GREEN}\tPostgreSQL: postgres://localhost:${services_ports[$service]}${NC}\n";;
-                postgres_exporter) echo -e "✅ ${GREEN}\tPOSTGRES Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                postgres_exporter) echo -e "✅ ${GREEN}\tPOSTGRES Exporter: http://localhost:${services_ports[$service]}${NC}\n";;
                 zookeeper) echo -e "✅ ${GREEN}\tZookeeper: localhost:${services_ports[$service]}${NC}\n";;
                 kafka) echo -e "✅ ${GREEN}\tKafka: localhost:${services_ports[$service]}${NC}\n";;
                 kafka_exporter) echo -e "✅ ${GREEN}\tKafka Exporter: localhost:${services_ports[$service]}${NC}\n";;
-                prometheus) echo -e "✅ ${GREEN}\tPROMETHEUS Exporter: localhost:${services_ports[$service]}${NC}\n";;
+                prometheus) echo -e "✅ ${GREEN}\tPROMETHEUS Exporter: http://localhost:${services_ports[$service]}${NC}\n";;
                 grafana) echo -e "✅ ${GREEN}\tGrafana UI: http://localhost:${services_ports[$service]}${NC}\n";;
                 kafka_ui) echo -e "✅ ${GREEN}\tKafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
             esac
@@ -186,6 +186,3 @@ start_services
 verify_services
 
 echo -e "${GREEN}🎉 Docker Environment Setup Complete!${NC}\n"
-
-# Revert changes to config files
-git checkout "$PROMETHEUS_YML" "$GRAFANA_YML"
