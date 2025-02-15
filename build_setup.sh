@@ -9,7 +9,7 @@ NC="\033[0m" # No Color
 
 
 # Define services
-services="monitor mysql mysql_exporter redis redis_exporter postgres postgres_exporter zookeeper kafka kafka_exporter prometheus grafana kafdrop akhq"
+services="monitor mysql mysql_exporter redis redis_exporter postgres postgres_exporter zookeeper kafka kafka_exporter prometheus grafana kafka_ui"
 
 
 # Load environment variables
@@ -28,8 +28,7 @@ if [ "${BUILD_KAFKA-0}" -eq 1 ]; then
     echo -e "${BLUE}    Kafka is enabled. Ensuring Zookeeper is also enabled.${NC}\n"
 else
     export BUILD_ZOOKEEPER=0
-    export BUILD_AKHQ=0
-    export BUILD_KAFDROP=0
+    export BUILD_KAFKA_UI=0
     export BUILD_KAFKA_EXPORTER=0
 fi
 
@@ -153,8 +152,7 @@ verify_services() {
         ["kafka_exporter"]=${KAFKA_EXPORTER_PORT-9308}
         ["prometheus"]=${PROMETHEUS_EXTERNAL_PORT-19090}
         ["grafana"]=${GRAFANA_EXTERNAL_PORT-13000}
-        ["akhq"]=${AKHQ_EXTERNAL_PORT-18080}
-        ["kafdrop"]=${KAFDROP_EXTERNAL_PORT-19000}
+        ["kafka_ui"]=${KAFKA_UI_EXTERNAL_PORT-18080}
     )
 
     for service in "${!services_ports[@]}"; do
@@ -174,8 +172,7 @@ verify_services() {
                 kafka_exporter) echo -e "✅ ${GREEN}\tKafka Exporter: localhost:${services_ports[$service]}${NC}\n";;
                 prometheus) echo -e "✅ ${GREEN}\tPROMETHEUS Exporter: localhost:${services_ports[$service]}${NC}\n";;
                 grafana) echo -e "✅ ${GREEN}\tGrafana UI: http://localhost:${services_ports[$service]}${NC}\n";;
-                akhq) echo -e "✅ ${GREEN}\tAKHQ Kafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
-                kafdrop) echo -e "✅ ${GREEN}\tKAFDROP Kafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
+                kafka_ui) echo -e "✅ ${GREEN}\tKafka UI: http://localhost:${services_ports[$service]}${NC}\n";;
             esac
         fi
     done

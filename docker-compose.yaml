@@ -103,43 +103,22 @@ services:
     deploy:
       replicas: ${BUILD_REDIS-0}
 
-  akhq:
-    container_name: akhq
-    image: ${AKHQ_IMAGE}
-    platform: ${DEV_PLATFORM}
-    environment:
-      AKHQ_CONFIGURATION: |
-        akhq:
-          connections:
-            default:
-              properties:
-                bootstrap.servers: "kafka:${KAFKA_PORT}"
+  kafka_ui:
+    image: ${KAFKA_UI_IMAGE}
+    container_name: kafka_ui
+    hostname: kafka_ui
     ports:
-      - "${AKHQ_EXTERNAL_PORT}:${AKHQ_PORT}"
-    networks:
-      - local-dev-net
-    restart: unless-stopped
-    depends_on:
-      - kafka
-    deploy:
-      replicas: ${BUILD_AKHQ-0}
-
-  kafdrop:
-    image: ${KAFDROP_IMAGE}
-    container_name: kafdrop
-    ports:
-      - "${KAFDROP_EXTERNAL_PORT}:${KAFDROP_PORT}"
+      - "${KAFKA_UI_EXTERNAL_PORT}:${KAFKA_UI_PORT}"
     environment:
-      KAFKA_BROKERCONNECT: kafka:${KAFKA_PORT}
-      JVM_OPTS: "-Xms32M -Xmx64M"
-      SERVER_PORT: ${KAFDROP_PORT}
+      - "KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:${KAFKA_PORT}"
+      - "SERVER_SERVLET_CONTEXT_PATH=/"
     depends_on:
       - kafka
     networks:
       - local-dev-net
     restart: unless-stopped
     deploy:
-      replicas: ${BUILD_KAFDROP-0}
+      replicas: ${BUILD_KAFKA_UI-0}
 
   prometheus:
     container_name: prometheus
